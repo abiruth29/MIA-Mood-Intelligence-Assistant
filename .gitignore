@@ -13,3 +13,8 @@ dist/
 # IDE
 .vscode/
 .idea/
+
+# md files
+*.md~
+*.html
+*.csv
