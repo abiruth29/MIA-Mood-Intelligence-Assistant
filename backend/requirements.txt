@@ -14,3 +14,8 @@ librosa
 fer
 tensorflow
 tf-keras
+
+# LLM & TTS (Phase 2)
+httpx
+edge-tts
+pyttsx3

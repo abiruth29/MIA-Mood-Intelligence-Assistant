@@ -2,17 +2,31 @@ import { useState, useEffect } from 'react'
 import MediaPreview from './components/MediaPreview'
 import TranscriptionDisplay from './components/TranscriptionDisplay'
 import { EmotionVisualizationWithSocket } from './components/EmotionVisualization'
+import LLMResponseDisplay from './components/LLMResponseDisplay'
+import TTSAudioPlayer from './components/TTSAudioPlayer'
+import AnalyticsDashboard from './components/AnalyticsDashboard'
 import { ThemeProvider, useTheme } from './context/ThemeContext'
 
 function AppContent({ socket, status }) {
   const { theme, isTransitioning } = useTheme()
+  const [showAnalytics, setShowAnalytics] = useState(false)
 
   return (
     <div className={`min-h-screen ${theme.background} text-white p-8 font-sans transition-all duration-700`}>
       <div className="max-w-4xl mx-auto text-center">
-        <h1 className={`text-5xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r ${theme.primary} tracking-tight transition-all duration-500`}>
-          MIA
-        </h1>
+        {/* Header */}
+        <div className="flex items-center justify-center gap-4 mb-2">
+          <h1 className={`text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r ${theme.primary} tracking-tight transition-all duration-500`}>
+            MIA
+          </h1>
+          <button
+            onClick={() => setShowAnalytics(true)}
+            className="p-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-full transition-colors"
+            title="View Analytics"
+          >
+            📊
+          </button>
+        </div>
         <p className={`text-xl mb-8 ${theme.accent} font-light transition-colors duration-500`}>
           Mood-Intelligence Assistant
         </p>
@@ -24,9 +38,19 @@ function AppContent({ socket, status }) {
         <div className="space-y-6">
           <MediaPreview socket={socket} />
           <EmotionVisualizationWithSocket socket={socket} />
+          <LLMResponseDisplay socket={socket} />
           <TranscriptionDisplay socket={socket} />
         </div>
       </div>
+      
+      {/* TTS Audio Player (fixed position) */}
+      <TTSAudioPlayer socket={socket} />
+      
+      {/* Analytics Dashboard Modal */}
+      <AnalyticsDashboard 
+        isOpen={showAnalytics} 
+        onClose={() => setShowAnalytics(false)} 
+      />
     </div>
   )
 }
