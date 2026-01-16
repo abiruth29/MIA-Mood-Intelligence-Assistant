@@ -2,12 +2,16 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import json
+import uuid
 from collections import deque
 from app.media_capture import VideoCapture, AudioCapture
 from app.asr_pipeline import WhisperTranscriber
 from app.voice_emotion import VoiceEmotionClassifier
 from app.text_emotion import TextEmotionClassifier
 from app.vision_pipeline import VisionEmotionClassifier
+from app.llm_response import LLMResponseGenerator
+from app.tts_engine import TTSEngine
+from app.database import MIADatabase
 
 app = FastAPI()
 
@@ -22,8 +26,8 @@ app.add_middleware(
 
 video_capture = VideoCapture()
 audio_capture = AudioCapture()
-# Initialize transcriber lazily or globally? Globally is better to load model once.
-# However, loading it might take time. Let's load it globally but handle the delay.
+
+# Initialize all components
 print("Initializing Whisper Transcriber...")
 transcriber = WhisperTranscriber()
 print("Whisper Transcriber ready.")
@@ -40,6 +44,18 @@ print("Initializing Vision Emotion Classifier...")
 vision_classifier = VisionEmotionClassifier()
 print("Vision Emotion Classifier ready.")
 
+print("Initializing LLM Response Generator...")
+llm_generator = LLMResponseGenerator(provider="ollama", model="llama3.2")
+print("LLM Response Generator ready.")
+
+print("Initializing TTS Engine...")
+tts_engine = TTSEngine()
+print("TTS Engine ready.")
+
+print("Initializing Database...")
+database = MIADatabase()
+print("Database ready.")
+
 # Temporal smoothing buffer (5-second window at ~2Hz = 10 samples)
 emotion_history = deque(maxlen=10)
 
@@ -48,13 +64,59 @@ AUDIO_WEIGHT = 0.3
 TEXT_WEIGHT = 0.3
 VIDEO_WEIGHT = 0.4
 
+# LLM response settings
+ENABLE_LLM = True  # Set to False to disable LLM responses
+ENABLE_TTS = True  # Set to False to disable text-to-speech
+
 @app.get("/")
 async def root():
     return {"message": "MIA Backend is running"}
 
+# REST API endpoints for analytics
+@app.get("/api/analytics/emotions")
+async def get_emotion_analytics(days: int = 7):
+    """Get emotion distribution analytics."""
+    return database.get_emotion_distribution(days=days)
+
+@app.get("/api/analytics/sessions")
+async def get_sessions(days: int = 30):
+    """Get session summaries."""
+    return database.get_session_summary(days=days)
+
+@app.get("/api/analytics/engagement")
+async def get_engagement_stats(days: int = 7):
+    """Get engagement statistics."""
+    return database.get_engagement_stats(days=days)
+
+@app.get("/api/analytics/daily")
+async def get_daily_analytics(date: str = None):
+    """Get daily analytics summary."""
+    return database.get_daily_summary(date)
+
+@app.get("/api/analytics/daily/{date}")
+async def get_daily_analytics_by_date(date: str):
+    """Get daily analytics summary for a specific date."""
+    return database.get_daily_summary(date)
+
+@app.get("/api/preferences")
+async def get_preferences():
+    """Get all user preferences."""
+    return database.get_all_preferences()
+
+@app.post("/api/preferences/{key}")
+async def set_preference(key: str, value: str):
+    """Set a user preference."""
+    database.set_preference(key, value)
+    return {"status": "ok"}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+    
+    # Create a unique session ID for this connection
+    session_id = str(uuid.uuid4())[:8]
+    database.create_session(session_id, {"type": "websocket"})
+    print(f"New session started: {session_id}")
     
     async def receive_commands():
         try:
@@ -228,6 +290,82 @@ async def websocket_endpoint(websocket: WebSocket):
                                 "gaze": gaze,
                                 "engagement": round(engagement, 2)
                             }))
+                            
+                            # Log emotion event to database
+                            try:
+                                database.log_emotion_event(
+                                    session_id=session_id,
+                                    emotion=final_emotion,
+                                    confidence=final_confidence,
+                                    audio_emotion=audio_emotion_result["emotion"],
+                                    text_emotion=text_emotion_result["emotion"] if has_text else None,
+                                    video_emotion=video_emotion_result["emotion"] if has_video else None,
+                                    engagement=engagement
+                                )
+                            except Exception as db_err:
+                                print(f"DB logging error: {db_err}")
+                            
+                            # 7. Generate LLM Response (if text is available)
+                            if ENABLE_LLM and has_text and len(text) > 3:
+                                try:
+                                    llm_result = await llm_generator.generate_response(
+                                        user_text=text,
+                                        emotion=final_emotion,
+                                        confidence=final_confidence,
+                                        context={"engagement": engagement, "gaze": gaze}
+                                    )
+                                    
+                                    if llm_result.get("response"):
+                                        assistant_response = llm_result["response"]
+                                        print(f"MIA: {assistant_response[:100]}...")
+                                        
+                                        # Send LLM response to frontend
+                                        await websocket.send_text(json.dumps({
+                                            "type": "llm_response",
+                                            "response": assistant_response,
+                                            "suggestions": llm_result.get("suggestions", [])
+                                        }))
+                                        
+                                        # Save conversation to database
+                                        try:
+                                            database.save_conversation(
+                                                session_id=session_id,
+                                                user_text=text,
+                                                assistant_response=assistant_response,
+                                                emotion=final_emotion,
+                                                confidence=final_confidence,
+                                                modalities={
+                                                    "audio": audio_emotion_result["emotion"],
+                                                    "text": text_emotion_result["emotion"] if has_text else None,
+                                                    "video": video_emotion_result["emotion"] if has_video else None
+                                                },
+                                                engagement=engagement,
+                                                head_pose=head_pose
+                                            )
+                                        except Exception as db_err:
+                                            print(f"DB save error: {db_err}")
+                                        
+                                        # 8. Generate TTS audio (if enabled)
+                                        if ENABLE_TTS:
+                                            try:
+                                                tts_result = await tts_engine.synthesize(
+                                                    text=assistant_response,
+                                                    emotion=final_emotion,
+                                                    return_format="base64"
+                                                )
+                                                
+                                                if tts_result.get("audio"):
+                                                    await websocket.send_text(json.dumps({
+                                                        "type": "tts_audio",
+                                                        "audio": tts_result["audio"],
+                                                        "format": tts_result.get("format", "mp3"),
+                                                        "voice": tts_result.get("voice", "")
+                                                    }))
+                                            except Exception as tts_err:
+                                                print(f"TTS error: {tts_err}")
+                                                
+                                except Exception as llm_err:
+                                    print(f"LLM error: {llm_err}")
                         else:
                             # Fallback to just audio if nothing else
                             emotion = audio_emotion_result.get("emotion", "neutral")
@@ -269,6 +407,12 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         video_capture.stop()
         audio_capture.stop()
+        # End the session
+        try:
+            database.end_session(session_id)
+            print(f"Session ended: {session_id}")
+        except Exception as e:
+            print(f"Session end error: {e}")
 
 if __name__ == "__main__":
     import uvicorn
