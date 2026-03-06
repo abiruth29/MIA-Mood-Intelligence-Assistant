@@ -1,0 +1,5 @@
+Copy unified-dataset.jsonl from:
+  MIA/unify-emotion-datasets-master/unified-dataset.jsonl
+
+into this data/ folder so it becomes:
+  neuro_emotion_trainer/data/unified-dataset.jsonl
