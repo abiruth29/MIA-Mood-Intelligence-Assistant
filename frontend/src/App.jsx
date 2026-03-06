@@ -7,7 +7,15 @@ import TTSAudioPlayer from './components/TTSAudioPlayer'
 import AnalyticsDashboard from './components/AnalyticsDashboard'
 import { ThemeProvider, useTheme } from './context/ThemeContext'
 
-function AppContent({ socket, status }) {
+// ─── SET THIS to Laptop A's local IP when running distributed ───────────────
+// In development (single machine): leave as "localhost"
+// In distributed mode: change to your laptop's IP, e.g. "192.168.1.100"
+const BACKEND_HOST = import.meta.env.VITE_BACKEND_HOST || "localhost"
+const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT || "8000"
+const WS_URL = `ws://${BACKEND_HOST}:${BACKEND_PORT}/ws`
+// ────────────────────────────────────────────────────────────────────────────
+
+function AppContent({ socket, status, backendHost }) {
   const { theme, isTransitioning } = useTheme()
   const [showAnalytics, setShowAnalytics] = useState(false)
 
@@ -31,8 +39,13 @@ function AppContent({ socket, status }) {
           Mood-Intelligence Assistant
         </p>
 
-        <div className={`mb-6 inline-block px-4 py-1.5 rounded-full bg-gray-800/50 border ${theme.border} text-sm font-mono shadow-lg ${theme.glow} transition-all duration-500`}>
+        <div className={`mb-2 inline-block px-4 py-1.5 rounded-full bg-gray-800/50 border ${theme.border} text-sm font-mono shadow-lg ${theme.glow} transition-all duration-500`}>
           Status: <span className={status === 'Connected' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{status}</span>
+        </div>
+
+        {/* Show which backend we're connected to */}
+        <div className="mb-6 text-xs text-gray-600 font-mono">
+          backend: {backendHost}
         </div>
 
         <div className="space-y-6">
@@ -42,14 +55,14 @@ function AppContent({ socket, status }) {
           <TranscriptionDisplay socket={socket} />
         </div>
       </div>
-      
+
       {/* TTS Audio Player (fixed position) */}
       <TTSAudioPlayer socket={socket} />
-      
+
       {/* Analytics Dashboard Modal */}
-      <AnalyticsDashboard 
-        isOpen={showAnalytics} 
-        onClose={() => setShowAnalytics(false)} 
+      <AnalyticsDashboard
+        isOpen={showAnalytics}
+        onClose={() => setShowAnalytics(false)}
       />
     </div>
   )
@@ -60,29 +73,32 @@ function App() {
   const [socket, setSocket] = useState(null)
 
   useEffect(() => {
-    // Connect to the WebSocket server
-    const ws = new WebSocket('ws://localhost:8000/ws')
+    console.log(`Connecting to: ${WS_URL}`)
+    const ws = new WebSocket(WS_URL)
 
     ws.onopen = () => {
       setStatus('Connected')
-      console.log('Connected to Backend')
+      console.log('Connected to MIA Backend')
     }
 
     ws.onclose = () => {
       setStatus('Disconnected')
-      console.log('Disconnected from Backend')
+      console.log('Disconnected from MIA Backend')
+    }
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err)
+      setStatus('Error')
     }
 
     setSocket(ws)
 
-    return () => {
-      ws.close()
-    }
+    return () => { ws.close() }
   }, [])
 
   return (
     <ThemeProvider socket={socket}>
-      <AppContent socket={socket} status={status} />
+      <AppContent socket={socket} status={status} backendHost={`${BACKEND_HOST}:${BACKEND_PORT}`} />
     </ThemeProvider>
   )
 }
