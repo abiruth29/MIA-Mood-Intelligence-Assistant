@@ -32,9 +32,9 @@ Example: `192.168.1.100`, `192.168.1.101`, etc.
 ## Step 2 — Edit `worker_config.py` (on Laptop A)
 
 ```python
-LAPTOP_B_HOST = "192.168.1.101"   # <-- Laptop B's actual IP
-LAPTOP_C_HOST = "192.168.1.102"   # <-- Laptop C's actual IP
-LAPTOP_D_HOST = "192.168.1.103"   # <-- Laptop D's actual IP
+LAPTOP_B_HOST = "192.168.1.2"   # <-- Laptop B's actual IP
+LAPTOP_C_HOST = "192.168.1.4"   # <-- Laptop C's actual IP
+LAPTOP_D_HOST = "192.168.1.1"   # <-- Laptop D's actual IP
 ```
 
 ---
