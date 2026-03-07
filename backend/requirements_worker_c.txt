@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+httpx
+pydantic
+numpy
+opencv-python-headless
+fer
+tensorflow
+tf-keras

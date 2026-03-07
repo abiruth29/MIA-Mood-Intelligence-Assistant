@@ -13,7 +13,7 @@ Laptop D         = runs workers/worker_llm_text.py
 # ─── SET THESE TO YOUR ACTUAL LOCAL IP ADDRESSES ───────────────────────────
 LAPTOP_B_HOST = "192.168.1.2"   # Whisper + Voice Emotion
 LAPTOP_C_HOST = "192.168.1.4"   # Vision / FER
-LAPTOP_D_HOST = "192.168.1.1"   # Text Emotion + LLM
+LAPTOP_D_HOST = "192.168.1.5"   # Text Emotion + LLM
 # ───────────────────────────────────────────────────────────────────────────
 
 WORKER_B_URL = f"http://{LAPTOP_B_HOST}:8001"   # ASR + Voice Emotion

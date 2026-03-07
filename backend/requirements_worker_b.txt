@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+httpx
+pydantic
+numpy
+torch
+transformers
+scipy
+librosa

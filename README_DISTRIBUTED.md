@@ -10,9 +10,9 @@ The distributed version **splits the work** across 4 laptops on the same WiFi:
 | Laptop | Role | Runs |
 |--------|------|------|
 | **A (yours)** | Coordinator + UI | `main_distributed.py` + React frontend |
-| **B** | Audio AI | `workers/worker_asr_voice.py` |
-| **C** | Vision AI | `workers/worker_vision.py` |
-| **D** | Language AI | `workers/worker_llm_text.py` |
+| **B** | Audio AI | `worker_asr_voice.py` |
+| **C** | Vision AI | `worker_vision.py` |
+| **D** | Language AI | `worker_llm_text.py` |
 
 All 3 workers are called **in parallel** every 2 seconds — so you get the speed
 of all 4 CPUs/GPUs working simultaneously.
@@ -77,7 +77,7 @@ pip install fastapi uvicorn httpx pydantic opencv-python pyaudio numpy edge-tts
 **Laptop B:**
 ```bash
 cd backend
-python workers/worker_asr_voice.py
+python worker_asr_voice.py
 # Should print: ✅ Worker B ready.
 # Listening on: http://0.0.0.0:8001
 ```
@@ -85,7 +85,7 @@ python workers/worker_asr_voice.py
 **Laptop C:**
 ```bash
 cd backend
-python workers/worker_vision.py
+python worker_vision.py
 # Should print: ✅ Worker C ready.
 # Listening on: http://0.0.0.0:8002
 ```
@@ -94,7 +94,7 @@ python workers/worker_vision.py
 ```bash
 ollama serve   # (in a separate terminal)
 cd backend
-python workers/worker_llm_text.py
+python worker_llm_text.py
 # Should print: ✅ Worker D ready.
 # Listening on: http://0.0.0.0:8003
 ```

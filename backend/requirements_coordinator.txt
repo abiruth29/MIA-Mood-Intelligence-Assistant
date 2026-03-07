@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+httpx
+pydantic
+numpy
+opencv-python
+pyaudio
+edge-tts
+pyttsx3
